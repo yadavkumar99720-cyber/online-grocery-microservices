@@ -1,0 +1,60 @@
+======================================================================
+CIRCUIT BREAKER DEMO  (threshold = 3 failures, recovery = 10s)
+======================================================================
+
+[1] Healthy system
+  order #A: HTTP 201 in  431 ms | order status=CONFIRMED
+      payment-service breaker -> CLOSED (consecutive failures=0)
+
+[2] Stop the dependent service (payment-service)
+  >>> payment-service (pid 19416) has been STOPPED
+
+[3] Orders while payment-service is DOWN  (watch the circuit)
+  attempt 1: HTTP 424 in 2415 ms | order status=CANCELLED
+      reason: PROCESS_PAYMENT: payment-service unavailable (connection refused - service is down)
+      payment-service breaker -> CLOSED (consecutive failures=1)
+  attempt 2: HTTP 424 in 2327 ms | order status=CANCELLED
+      reason: PROCESS_PAYMENT: payment-service unavailable (connection refused - service is down)
+      payment-service breaker -> CLOSED (consecutive failures=2)
+  attempt 3: HTTP 424 in 2317 ms | order status=CANCELLED
+      reason: PROCESS_PAYMENT: payment-service unavailable (connection refused - service is down)
+      payment-service breaker -> OPEN (consecutive failures=3)
+  attempt 4: HTTP 424 in  378 ms | order status=CANCELLED
+      reason: PROCESS_PAYMENT: payment-service unavailable (circuit breaker is OPEN (failing fast))
+      payment-service breaker -> OPEN (consecutive failures=3)
+  attempt 5: HTTP 424 in  307 ms | order status=CANCELLED
+      reason: PROCESS_PAYMENT: payment-service unavailable (circuit breaker is OPEN (failing fast))
+      payment-service breaker -> OPEN (consecutive failures=3)
+  -> after 3 failures the circuit is OPEN: attempts 4-5 are rejected instantly
+     (no network call), the Saga compensates (stock released) and the client
+     gets a clean JSON error (HTTP 424) instead of a crash or a hang.
+
+[4] Fault tolerance - the REST of the application still works
+  GET  /api/v1/products   -> HTTP 200 (10 products)
+  GET  /api/v1/customers/1-> HTTP 200
+  GET  /api/v1/payments #1 -> HTTP 503 service temporarily unavailable | gateway circuit=CLOSED | connection refused - service is down
+  GET  /api/v1/payments #2 -> HTTP 503 service temporarily unavailable | gateway circuit=CLOSED | no healthy instance of 'payment-service' registered
+  GET  /api/v1/payments #3 -> HTTP 503 service temporarily unavailable | gateway circuit=OPEN | no healthy instance of 'payment-service' registered
+  GET  /api/v1/payments #4 -> HTTP 503 service temporarily unavailable | gateway circuit=OPEN | circuit breaker is OPEN (failing fast)
+  -> the gateway returns a graceful JSON 503 and opens its OWN circuit for payment-service.
+
+[5] Non-critical service down: notification-service
+  payment-service restarted & re-registered (circuit still OPEN until recovery timeout)
+  >>> notification-service (pid 30724) has been STOPPED
+
+[6] Recovery: OPEN -> HALF_OPEN -> CLOSED
+  state now: OPEN (consecutive failures=3)
+  waiting 11s for the recovery timeout...
+  state now: HALF_OPEN (consecutive failures=3)   <- trial call is allowed
+  trial order: HTTP 201 in  459 ms | order status=CONFIRMED
+      payment-service breaker -> CLOSED (consecutive failures=0)
+  -> trial call succeeded, circuit CLOSED again
+  notification-service is still down: order status = CONFIRMED (fallback: notification skipped, order NOT affected)
+      saga log: NOTIFY_CUSTOMER SKIPPED - fallback: notification-service down (CLOSED); order not affected
+
+  Breaker transition history (order-service):
+      12:14:16  CLOSED -> OPEN
+      12:14:31  OPEN -> HALF_OPEN
+      12:14:32  HALF_OPEN -> CLOSED
+
+  notification-service restarted. Demo finished.

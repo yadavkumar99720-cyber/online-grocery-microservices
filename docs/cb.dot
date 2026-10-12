@@ -1,0 +1,5 @@
+digraph C {
+  rankdir=LR; fontname="Helvetica"; node [fontname="Helvetica", fontsize=12, shape=circle, style=filled, width=1.2]; edge [fontname="Helvetica", fontsize=10];
+  C [label="CLOSED\n(normal)", fillcolor="#c8e6c9"]; O [label="OPEN\n(fail fast)", fillcolor="#ef9a9a"]; H [label="HALF-OPEN\n(1 trial call)", fillcolor="#fff59d"];
+  C -> O [label="3 consecutive\nfailures"]; O -> H [label="after 10 s"]; H -> C [label="trial succeeds"]; H -> O [label="trial fails"];
+}

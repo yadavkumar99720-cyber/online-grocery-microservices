@@ -1,0 +1,16 @@
+digraph S {
+  rankdir=LR; fontname="Helvetica"; node [fontname="Helvetica", fontsize=11, shape=box, style="rounded,filled"]; edge [fontname="Helvetica", fontsize=9];
+  start [label="POST /api/v1/orders", shape=oval, fillcolor="#e8eaf6"];
+  s1 [label="1. Reserve stock\n(inventory-service)", fillcolor="#c8e6c9"];
+  s2 [label="2. Process payment\n(payment-service)", fillcolor="#c8e6c9"];
+  s3 [label="3. Arrange delivery\n(delivery-service)", fillcolor="#c8e6c9"];
+  s4 [label="4. Confirm order\n(commit stock, CONFIRMED)", fillcolor="#c8e6c9"];
+  ok [label="201 CONFIRMED", shape=oval, fillcolor="#a5d6a7"];
+  c3 [label="Cancel delivery", fillcolor="#ffcdd2"]; c2 [label="Refund payment", fillcolor="#ffcdd2"]; c1 [label="Release stock", fillcolor="#ffcdd2"];
+  bad [label="Order CANCELLED\n(402 / 409 / 424)", shape=oval, fillcolor="#ef9a9a"];
+  start -> s1 -> s2 -> s3 -> s4 -> ok;
+  s3 -> c2 [label="fails", color=red, fontcolor=red]; s2 -> c1 [label="fails", color=red, fontcolor=red];
+  s4 -> c3 [label="fails", color=red, fontcolor=red];
+  c3 -> c2 -> c1 -> bad [color=red];
+  s1 -> bad [label="fails\n(nothing to undo)", color=red, fontcolor=red];
+}

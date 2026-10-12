@@ -1,0 +1,21 @@
+digraph G {
+  rankdir=TB; fontname="Helvetica"; node [fontname="Helvetica", fontsize=11, shape=box, style="rounded,filled"]; edge [fontname="Helvetica", fontsize=9];
+  client [label="Client\n(Postman / Browser / App)", fillcolor="#e8eaf6"];
+  gw [label="API GATEWAY :8000\nrouting · versioning (v1/v2)\ncircuit breaker · fallback cache", fillcolor="#ffe0b2"];
+  reg [label="SERVICE REGISTRY :8500\nregister · heartbeat · lookup by name", fillcolor="#c8e6c9"];
+  subgraph cluster_svc { label="Microservices (each owns its database)"; style="dashed"; color="#888888";
+    cust [label="Customer Service :5001", fillcolor="#bbdefb"]; custdb [label="customer.db", shape=cylinder, fillcolor="#fff9c4"];
+    inv [label="Inventory Service :5002\n(products + stock)", fillcolor="#bbdefb"]; invdb [label="inventory.db", shape=cylinder, fillcolor="#fff9c4"];
+    ord [label="Order Service :5003\nSAGA ORCHESTRATOR", fillcolor="#f8bbd0"]; orddb [label="order.db", shape=cylinder, fillcolor="#fff9c4"];
+    pay [label="Payment Service :5004", fillcolor="#bbdefb"]; paydb [label="payment.db", shape=cylinder, fillcolor="#fff9c4"];
+    del [label="Delivery Service :5005", fillcolor="#bbdefb"]; deldb [label="delivery.db", shape=cylinder, fillcolor="#fff9c4"];
+    note [label="Notification Service :5006\n(non-critical)", fillcolor="#bbdefb"]; notedb [label="notification.db", shape=cylinder, fillcolor="#fff9c4"];
+  }
+  client -> gw [label="HTTP /api/v1|v2/..."];
+  gw -> ord; gw -> cust; gw -> inv; gw -> pay; gw -> del; gw -> note;
+  gw -> reg [style=dashed, label="lookup", color="#2e7d32", fontcolor="#2e7d32"];
+  ord -> reg [style=dashed, label="lookup", color="#2e7d32", fontcolor="#2e7d32"];
+  ord -> cust [label="1 validate"]; ord -> inv [label="2 reserve / commit"]; ord -> pay [label="3 charge"]; ord -> del [label="4 deliver"]; ord -> note [label="5 notify\n(fallback)", style=dotted];
+  cust -> custdb; inv -> invdb; ord -> orddb; pay -> paydb; del -> deldb; note -> notedb;
+  {rank=same; cust; inv; ord; pay; del; note}
+}

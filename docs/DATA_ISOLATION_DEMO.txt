@@ -1,0 +1,29 @@
+DATABASE PER SERVICE
+------------------------------------------------------------
+customer_service       customer.db        tables: customers
+delivery_service       delivery.db        tables: agents, deliveries
+inventory_service      inventory.db       tables: products, reservations
+notification_service   notification.db    tables: notifications
+order_service          order.db           tables: orders, order_items, saga_log
+payment_service        payment.db         tables: payments
+
+ORDER DB holds only references to other services' data
+------------------------------------------------------------
+orders columns: ['id', 'customer_id', 'customer_name', 'delivery_address', 'pincode', 'total_amount', 'payment_method', 'payment_id', 'delivery_id', 'status', 'failure_reason', 'notes', 'created_at', 'updated_at']
+foreign keys to other databases: 0  (none - cross-service links are plain IDs)
+
+Cross-service data is obtained ONLY through APIs
+------------------------------------------------------------
+order-service needs customer #1 -> GET /api/v1/customers/1 (customer-service API) -> 200 Asha Demo
+order-service needs product #1  -> GET /api/v1/products/1  (inventory-service API) -> 200 Basmati Rice
+
+Source-code check: which services mention a database file?
+------------------------------------------------------------
+customer_service       opens: ['customer.db', 'data/customer.db']
+delivery_service       opens: ['data/delivery.db', 'delivery.db']
+gateway                opens: -
+inventory_service      opens: ['data/inventory.db', 'inventory.db']
+notification_service   opens: ['data/notification.db', 'notification.db']
+order_service          opens: ['data/order.db', 'order.db']
+payment_service        opens: ['data/payment.db', 'payment.db']
+registry               opens: -
